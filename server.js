@@ -7,6 +7,7 @@ import cors from 'cors';
 import authRoutes from './routes/authRoutes.js';
 import eventRoutes from './routes/eventRoutes.js';
 import pool from './db.js'; 
+import { startReminderCron } from './services/cronJobs.js';
 
 // ==========================
 // CONFIGURACIÓN BÁSICA
@@ -49,8 +50,14 @@ app.get('/api/test-db', async (req, res) => {
   }
 });
 
+
+
 // ==========================
 // LEVANTAR SERVIDOR
 // ==========================
+
+// Iniciar sistema de recordatorios
+startReminderCron();
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));

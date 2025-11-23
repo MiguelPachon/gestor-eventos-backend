@@ -1,6 +1,7 @@
 import express from "express";
 import pool from "../db.js";
 import verifyToken from "../middleware/verifyToken.js";
+import { sendRegistrationConfirmation } from '../services/emailService.js';
 
 const router = express.Router();
 
@@ -66,7 +67,6 @@ router.post("/:id/register", verifyToken, async (req, res) => {
   const userId = req.user.id;
 
   try {
-    
     const event = await pool.query("SELECT * FROM events WHERE id = $1", [eventId]);
     if (event.rows.length === 0) return res.status(404).json({ message: "Evento no encontrado" });
 
@@ -77,7 +77,6 @@ router.post("/:id/register", verifyToken, async (req, res) => {
       return res.status(400).json({ message: "Cupo lleno, no se pueden inscribir más usuarios." });
     }
 
-    
     const existing = await pool.query(
       "SELECT * FROM registrations WHERE user_id = $1 AND event_id = $2",
       [userId, eventId]
@@ -90,6 +89,23 @@ router.post("/:id/register", verifyToken, async (req, res) => {
       "INSERT INTO registrations (user_id, event_id) VALUES ($1, $2)",
       [userId, eventId]
     );
+
+    
+    const user = await pool.query("SELECT name, email FROM users WHERE id = $1", [userId]);
+    const eventDetails = event.rows[0];
+    
+    try {
+      await sendRegistrationConfirmation(
+        user.rows[0].email,
+        user.rows[0].name,
+        eventDetails
+      );
+      console.log(`Email de confirmación enviado a ${user.rows[0].email}`);
+    } catch (emailError) {
+      console.error('Error enviando email de confirmación:', emailError);
+      
+    }
+
     res.json({ message: "Inscripción realizada con éxito" });
   } catch (err) {
     console.error("Error al inscribirse:", err);
