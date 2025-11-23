@@ -158,4 +158,38 @@ router.get("/mine", verifyToken, async (req, res) => {
   }
 });
 
+// =========================
+// Eliminar evento
+// =========================
+router.delete("/:id", verifyToken, async (req, res) => {
+  const eventId = parseInt(req.params.id);
+  const userId = req.user.id;
+  const role = req.user.role;
+
+  try {
+    
+    const result = await pool.query("SELECT * FROM events WHERE id = $1", [eventId]);
+    if (result.rowCount === 0)
+      return res.status(404).json({ message: "Evento no encontrado" });
+
+    const event = result.rows[0];
+
+    // Solo el creador u organizador pueden borrar
+    if (event.organizer_id !== userId && role !== "organizer")
+      return res.status(403).json({ message: "No tienes permiso para eliminar este evento." });
+
+    // Eliminar inscripciones
+    await pool.query("DELETE FROM registrations WHERE event_id = $1", [eventId]);
+
+    // Eliminar evento
+    await pool.query("DELETE FROM events WHERE id = $1", [eventId]);
+
+    res.json({ message: "Evento eliminado correctamente", eventId });
+  } catch (err) {
+    console.error("Error eliminando evento:", err);
+    res.status(500).json({ message: "Error al eliminar el evento" });
+  }
+});
+
+
 export default router;
