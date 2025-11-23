@@ -1,6 +1,7 @@
 import express from "express";
 import { registerToEvent, getMyRegistrations, cancelMyRegistration } from "../controllers/registrationController.js";
-import { verifyToken } from "../middleware/authMiddleware.js";
+import verifyToken from "../middleware/verifyToken.js";
+
 
 const router = express.Router();
 
