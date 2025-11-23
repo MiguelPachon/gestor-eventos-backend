@@ -64,20 +64,27 @@ router.post("/login", async (req, res) => {
     if (!isMatch)
       return res.status(400).json({ message: "Correo o contraseña incorrectos" });
 
-    // Crear token JWT
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "8h" }
     );
 
-    // Obtener inscripciones del usuario
+    
     const regs = await pool.query(
       "SELECT event_id FROM registrations WHERE user_id = $1",
       [user.id]
     );
 
     const registeredEvents = regs.rows.map(r => r.event_id);
+
+    
+    const created = await pool.query(
+      "SELECT id FROM events WHERE organizer_id = $1",
+      [user.id]
+    );
+
+    const createdEvents = created.rows.map(e => e.id);
 
     res.json({
       message: "Inicio de sesión exitoso",
@@ -86,7 +93,8 @@ router.post("/login", async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        registeredEvents
+        registeredEvents,
+        createdEvents     
       },
       token,
     });
