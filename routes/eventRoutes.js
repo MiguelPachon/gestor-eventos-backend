@@ -24,30 +24,39 @@ router.get("/", async (req, res) => {
 });
 
 // =========================
-// Crear un nuevo evento (solo organizadores)
+// Crear un nuevo evento 
 // =========================
 router.post("/", verifyToken, async (req, res) => {
   const { title, description, category, date, location, max_capacity, image } = req.body;
   const userId = req.user.id;
   const role = req.user.role;
 
-  if (role !== "organizer") {
-    return res.status(403).json({ message: "Solo los organizadores pueden crear eventos." });
-  }
-
   try {
+
+    
+    if (role === "user" && max_capacity > 20) {
+      return res.status(400).json({
+        message: "Los usuarios normales solo pueden crear eventos pequeños (máximo 20 personas)."
+      });
+    }
+
+    const finalCapacity = role === "user" ? Math.min(max_capacity, 20) : max_capacity;
+
     const result = await pool.query(
       `INSERT INTO events (title, description, category, date, location, max_capacity, image, organizer_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [title, description, category, date, location, max_capacity, image, userId]
+      [title, description, category, date, location, finalCapacity, image, userId]
     );
+
     res.status(201).json({ message: "Evento creado con éxito", event: result.rows[0] });
+
   } catch (err) {
     console.error("Error al crear evento:", err);
     res.status(500).json({ message: "Error al crear el evento" });
   }
 });
+
 
 // =========================
 // Inscribirse a un evento
@@ -57,7 +66,7 @@ router.post("/:id/register", verifyToken, async (req, res) => {
   const userId = req.user.id;
 
   try {
-    // verificar si el evento existe
+    
     const event = await pool.query("SELECT * FROM events WHERE id = $1", [eventId]);
     if (event.rows.length === 0) return res.status(404).json({ message: "Evento no encontrado" });
 
@@ -68,7 +77,7 @@ router.post("/:id/register", verifyToken, async (req, res) => {
       return res.status(400).json({ message: "Cupo lleno, no se pueden inscribir más usuarios." });
     }
 
-    // verificar si ya está inscrito
+    
     const existing = await pool.query(
       "SELECT * FROM registrations WHERE user_id = $1 AND event_id = $2",
       [userId, eventId]
@@ -76,7 +85,7 @@ router.post("/:id/register", verifyToken, async (req, res) => {
     if (existing.rows.length > 0)
       return res.status(400).json({ message: "Ya estás inscrito en este evento." });
 
-    // registrar
+    
     await pool.query(
       "INSERT INTO registrations (user_id, event_id) VALUES ($1, $2)",
       [userId, eventId]
@@ -92,11 +101,11 @@ router.post("/:id/register", verifyToken, async (req, res) => {
 // Cancelar inscripción
 // =========================
 router.delete("/:id/cancel", verifyToken, async (req, res) => {
-  const eventId = parseInt(req.params.id);  // <- ARREGLA EL BUG
+  const eventId = parseInt(req.params.id); 
   const userId = req.user.id;
 
   try {
-    // Verificar si está inscrito
+    
     const existing = await pool.query(
       "SELECT * FROM registrations WHERE user_id = $1 AND event_id = $2",
       [userId, eventId]
@@ -131,7 +140,7 @@ router.delete("/:id/cancel", verifyToken, async (req, res) => {
 
 
 // =========================
-// Ver eventos creados por el organizador
+// Ver eventos creados 
 // =========================
 router.get("/mine", verifyToken, async (req, res) => {
   const userId = req.user.id;

@@ -9,12 +9,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Ruta base
+
 app.get("/", (req, res) => {
   res.send("Servidor de Gestor de Eventos activo ");
 });
 
-// Test conexión a base de datos
+
 app.get("/test-db", async (req, res) => {
   try {
     const result = await pool.query("SELECT NOW()");

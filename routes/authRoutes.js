@@ -14,7 +14,7 @@ router.post("/register", async (req, res) => {
   const { name, email, password, role, nit, phone, document } = req.body;
 
   try {
-    // Verificar si el usuario ya existe
+   
     const userExists = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
     if (userExists.rows.length > 0)
       return res.status(400).json({ message: "El correo ya está registrado." });
@@ -30,7 +30,7 @@ router.post("/register", async (req, res) => {
       [name, email, hashedPassword, role || "user", nit, phone, document]
     );
 
-    // Crear token JWT
+    
     const token = jwt.sign(
       { id: result.rows[0].id, email, role: result.rows[0].role },
       process.env.JWT_SECRET,
