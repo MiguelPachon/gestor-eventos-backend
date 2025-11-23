@@ -71,6 +71,14 @@ router.post("/login", async (req, res) => {
       { expiresIn: "8h" }
     );
 
+    // Obtener inscripciones del usuario
+    const regs = await pool.query(
+      "SELECT event_id FROM registrations WHERE user_id = $1",
+      [user.id]
+    );
+
+    const registeredEvents = regs.rows.map(r => r.event_id);
+
     res.json({
       message: "Inicio de sesión exitoso",
       user: {
@@ -78,9 +86,11 @@ router.post("/login", async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        registeredEvents
       },
       token,
     });
+
   } catch (err) {
     console.error("Error en login:", err);
     res.status(500).json({ message: "Error al iniciar sesión" });
