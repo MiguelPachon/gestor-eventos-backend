@@ -5,7 +5,7 @@ import { verifyToken } from "../middleware/authMiddleware.js";
 const router = express.Router();
 
 // =========================
-// Obtener todos los eventos
+// Obtener todos los eventos (PÚBLICO)
 // =========================
 router.get("/", async (req, res) => {
   try {
@@ -27,21 +27,23 @@ router.get("/", async (req, res) => {
 // Crear un nuevo evento (solo organizadores)
 // =========================
 router.post("/", verifyToken, async (req, res) => {
-  const { title, description, category, date, location, max_capacity, image } = req.body;
-  const userId = req.user.id;
-  const role = req.user.role;
+  const userId = req.auth.sub;
+  const role = "organizer"; // prueba temporal
 
   if (role !== "organizer") {
     return res.status(403).json({ message: "Solo los organizadores pueden crear eventos." });
   }
 
   try {
+    const { title, description, category, date, location, max_capacity, image } = req.body;
+
     const result = await pool.query(
       `INSERT INTO events (title, description, category, date, location, max_capacity, image, organizer_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
       [title, description, category, date, location, max_capacity, image, userId]
     );
+
     res.status(201).json({ message: "Evento creado con éxito", event: result.rows[0] });
   } catch (err) {
     console.error("Error al crear evento:", err);
@@ -54,12 +56,12 @@ router.post("/", verifyToken, async (req, res) => {
 // =========================
 router.post("/:id/register", verifyToken, async (req, res) => {
   const eventId = req.params.id;
-  const userId = req.user.id;
+  const userId = req.auth.sub;
 
   try {
-    // verificar si el evento existe
     const event = await pool.query("SELECT * FROM events WHERE id = $1", [eventId]);
-    if (event.rows.length === 0) return res.status(404).json({ message: "Evento no encontrado" });
+    if (event.rows.length === 0)
+      return res.status(404).json({ message: "Evento no encontrado" });
 
     const current = await pool.query("SELECT COUNT(*) FROM registrations WHERE event_id = $1", [eventId]);
     const registeredCount = parseInt(current.rows[0].count);
@@ -68,7 +70,6 @@ router.post("/:id/register", verifyToken, async (req, res) => {
       return res.status(400).json({ message: "Cupo lleno, no se pueden inscribir más usuarios." });
     }
 
-    // verificar si ya está inscrito
     const existing = await pool.query(
       "SELECT * FROM registrations WHERE user_id = $1 AND event_id = $2",
       [userId, eventId]
@@ -76,11 +77,11 @@ router.post("/:id/register", verifyToken, async (req, res) => {
     if (existing.rows.length > 0)
       return res.status(400).json({ message: "Ya estás inscrito en este evento." });
 
-    // registrar
     await pool.query(
       "INSERT INTO registrations (user_id, event_id) VALUES ($1, $2)",
       [userId, eventId]
     );
+
     res.json({ message: "Inscripción realizada con éxito" });
   } catch (err) {
     console.error("Error al inscribirse:", err);
@@ -93,13 +94,14 @@ router.post("/:id/register", verifyToken, async (req, res) => {
 // =========================
 router.delete("/:id/cancel", verifyToken, async (req, res) => {
   const eventId = req.params.id;
-  const userId = req.user.id;
+  const userId = req.auth.sub;
 
   try {
     const result = await pool.query(
       "DELETE FROM registrations WHERE user_id = $1 AND event_id = $2",
       [userId, eventId]
     );
+
     if (result.rowCount === 0)
       return res.status(404).json({ message: "No estás inscrito en este evento." });
 
@@ -114,14 +116,18 @@ router.delete("/:id/cancel", verifyToken, async (req, res) => {
 // Ver eventos creados por el organizador
 // =========================
 router.get("/mine", verifyToken, async (req, res) => {
-  const userId = req.user.id;
-  const role = req.user.role;
+  const userId = req.auth.sub;
+  const role = "organizer"; // prueba temporal
 
-  if (role !== "organizer")
+  if (role !== "organizer") {
     return res.status(403).json({ message: "Solo los organizadores pueden ver sus eventos creados." });
+  }
 
   try {
-    const result = await pool.query("SELECT * FROM events WHERE organizer_id = $1 ORDER BY date DESC", [userId]);
+    const result = await pool.query(
+      "SELECT * FROM events WHERE organizer_id = $1 ORDER BY date DESC",
+      [userId]
+    );
     res.json(result.rows);
   } catch (err) {
     console.error("Error al obtener eventos del organizador:", err);
