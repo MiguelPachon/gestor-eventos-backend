@@ -1,28 +1,17 @@
-import nodemailer from 'nodemailer';
+import sgMail from '@sendgrid/mail';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Configurar SendGrid
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,  
-  secure: true,  
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  },
-  tls: {
-    rejectUnauthorized: false
-  }
-});
-
-
+// Email de confirmación de inscripción
 export const sendRegistrationConfirmation = async (userEmail, userName, eventDetails) => {
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
+  const msg = {
     to: userEmail,
-    subject: `Confirmación de inscripción - ${eventDetails.title}`,
+    from: process.env.EMAIL_USER, // Debe ser el email verificado en SendGrid
+    subject: `✅ Confirmación de inscripción - ${eventDetails.title}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: linear-gradient(135deg, #9333ea 0%, #7c3aed 100%); padding: 30px; text-align: center;">
@@ -73,19 +62,19 @@ export const sendRegistrationConfirmation = async (userEmail, userName, eventDet
   };
 
   try {
-    await transporter.sendMail(mailOptions);
-    console.log(`Email de confirmación enviado a ${userEmail}`);
+    await sgMail.send(msg);
+    console.log(`✅ Email de confirmación enviado a ${userEmail}`);
   } catch (error) {
-    console.error('Error enviando email:', error);
+    console.error('❌ Error enviando email:', error.response?.body || error.message);
     throw error;
   }
 };
 
-
+// Email de recordatorio (7 días antes)
 export const sendWeekReminder = async (userEmail, userName, eventDetails) => {
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
+  const msg = {
     to: userEmail,
+    from: process.env.EMAIL_USER,
     subject: `⏰ Recordatorio: ${eventDetails.title} - Queda 1 semana`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -130,18 +119,18 @@ export const sendWeekReminder = async (userEmail, userName, eventDetails) => {
   };
 
   try {
-    await transporter.sendMail(mailOptions);
-    console.log(`Recordatorio de 1 semana enviado a ${userEmail}`);
+    await sgMail.send(msg);
+    console.log(`✅ Recordatorio de 1 semana enviado a ${userEmail}`);
   } catch (error) {
-    console.error('Error enviando recordatorio:', error);
+    console.error('❌ Error enviando recordatorio:', error.response?.body || error.message);
   }
 };
 
-
+// Email de recordatorio (1 día antes)
 export const sendDayReminder = async (userEmail, userName, eventDetails) => {
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
+  const msg = {
     to: userEmail,
+    from: process.env.EMAIL_USER,
     subject: `🔥 ¡Mañana es el evento! - ${eventDetails.title}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -195,9 +184,9 @@ export const sendDayReminder = async (userEmail, userName, eventDetails) => {
   };
 
   try {
-    await transporter.sendMail(mailOptions);
-    console.log(`Recordatorio de 1 día enviado a ${userEmail}`);
+    await sgMail.send(msg);
+    console.log(`✅ Recordatorio de 1 día enviado a ${userEmail}`);
   } catch (error) {
-    console.error('Error enviando recordatorio:', error);
+    console.error('❌ Error enviando recordatorio:', error.response?.body || error.message);
   }
 };
