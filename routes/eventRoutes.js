@@ -92,23 +92,43 @@ router.post("/:id/register", verifyToken, async (req, res) => {
 // Cancelar inscripción
 // =========================
 router.delete("/:id/cancel", verifyToken, async (req, res) => {
-  const eventId = req.params.id;
+  const eventId = parseInt(req.params.id);  // <- ARREGLA EL BUG
   const userId = req.user.id;
 
   try {
-    const result = await pool.query(
+    // Verificar si está inscrito
+    const existing = await pool.query(
+      "SELECT * FROM registrations WHERE user_id = $1 AND event_id = $2",
+      [userId, eventId]
+    );
+
+    if (existing.rowCount === 0) {
+      return res.status(404).json({ message: "No estás inscrito en este evento." });
+    }
+
+    // Cancelar inscripción
+    await pool.query(
       "DELETE FROM registrations WHERE user_id = $1 AND event_id = $2",
       [userId, eventId]
     );
-    if (result.rowCount === 0)
-      return res.status(404).json({ message: "No estás inscrito en este evento." });
 
-    res.json({ message: "Inscripción cancelada correctamente" });
+    // Obtener nuevo número de inscritos
+    const updated = await pool.query(
+      "SELECT COUNT(*) FROM registrations WHERE event_id = $1",
+      [eventId]
+    );
+
+    res.json({
+      message: "Inscripción cancelada",
+      registered: parseInt(updated.rows[0].count)
+    });
+
   } catch (err) {
     console.error("Error al cancelar inscripción:", err);
     res.status(500).json({ message: "Error al cancelar la inscripción" });
   }
 });
+
 
 // =========================
 // Ver eventos creados por el organizador
